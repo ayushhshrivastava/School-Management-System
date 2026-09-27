@@ -82,6 +82,33 @@ async function main() {
     { code: 'academics:view', module: 'academics', action: 'view', description: 'View classes, sections, and subjects' },
     { code: 'academics:manage', module: 'academics', action: 'manage', description: 'Configure classes, sections, and subjects' },
 
+    // Academic Sessions (Step 3)
+    { code: 'academic_sessions:view', module: 'academics', action: 'view', description: 'View academic session details and statuses' },
+    { code: 'academic_sessions:create', module: 'academics', action: 'create', description: 'Create new academic sessions' },
+    { code: 'academic_sessions:update', module: 'academics', action: 'update', description: 'Modify academic session metadata and date ranges' },
+    { code: 'academic_sessions:activate', module: 'academics', action: 'activate', description: 'Set current active academic session' },
+    { code: 'academic_sessions:lock', module: 'academics', action: 'lock', description: 'Archive and lock historical academic sessions' },
+
+    // Classes & Sections (Step 3)
+    { code: 'classes:view', module: 'academics', action: 'view', description: 'View classes and grade roster' },
+    { code: 'classes:create', module: 'academics', action: 'create', description: 'Create new academic classes' },
+    { code: 'classes:update', module: 'academics', action: 'update', description: 'Update class details and sequence' },
+    { code: 'classes:delete', module: 'academics', action: 'delete', description: 'Deactivate or delete academic classes' },
+
+    { code: 'sections:view', module: 'academics', action: 'view', description: 'View class sections' },
+    { code: 'sections:create', module: 'academics', action: 'create', description: 'Create sections under classes' },
+    { code: 'sections:update', module: 'academics', action: 'update', description: 'Modify class sections and capacities' },
+    { code: 'sections:delete', module: 'academics', action: 'delete', description: 'Deactivate or delete class sections' },
+
+    // Subjects & Class-Subject Mapping (Step 3)
+    { code: 'subjects:view', module: 'academics', action: 'view', description: 'View subject catalog' },
+    { code: 'subjects:create', module: 'academics', action: 'create', description: 'Create new subjects' },
+    { code: 'subjects:update', module: 'academics', action: 'update', description: 'Modify subject catalog items' },
+    { code: 'subjects:delete', module: 'academics', action: 'delete', description: 'Deactivate or delete subjects' },
+
+    { code: 'class_subjects:view', module: 'academics', action: 'view', description: 'View class-subject mappings' },
+    { code: 'class_subjects:manage', module: 'academics', action: 'manage', description: 'Map subjects to classes and set core/elective flags' },
+
     // Staff
     { code: 'staff:view', module: 'staff', action: 'view', description: 'View staff directory' },
     { code: 'staff:manage', module: 'staff', action: 'manage', description: 'Manage staff profiles and assignments' },
@@ -98,6 +125,8 @@ async function main() {
     { code: 'roles:manage', module: 'roles', action: 'manage', description: 'Assign roles and configure permissions' },
     { code: 'audit:view', module: 'audit', action: 'view', description: 'Inspect audit trail logs' },
     { code: 'system:config', module: 'system', action: 'config', description: 'Modify school-wide system settings' },
+    { code: 'system:config:view', module: 'system', action: 'view', description: 'View system and school configuration' },
+    { code: 'system:config:edit', module: 'system', action: 'edit', description: 'Modify school-wide system settings and preferences' },
   ];
 
   const permissionsMap = new Map<string, string>();
@@ -141,13 +170,21 @@ async function main() {
       'attendance:view',
       'exams:view', 'exams:create', 'marks:enter', 'marks:update', 'marks:approve',
       'academics:view', 'academics:manage',
+      'academic_sessions:view',
+      'classes:view', 'classes:create', 'classes:update', 'classes:delete',
+      'sections:view', 'sections:create', 'sections:update', 'sections:delete',
+      'subjects:view', 'subjects:create', 'subjects:update', 'subjects:delete',
+      'class_subjects:view', 'class_subjects:manage',
       'staff:view', 'staff:manage',
       'reports:view', 'reports:export',
       'users:view', 'audit:view',
+      'system:config:view',
     ],
     ACCOUNTANT: [
       'fees:view', 'fees:collect', 'fees:update', 'fees:export',
       'students:view',
+      'academic_sessions:view',
+      'classes:view', 'sections:view',
       'reports:view', 'reports:export',
     ],
     OFFICE_STAFF: [
@@ -156,6 +193,8 @@ async function main() {
       'attendance:view',
       'staff:view',
       'academics:view',
+      'academic_sessions:view',
+      'classes:view', 'sections:view', 'subjects:view', 'class_subjects:view',
       'reports:view',
     ],
     TEACHER: [
@@ -163,12 +202,16 @@ async function main() {
       'attendance:view', 'attendance:mark',
       'exams:view', 'marks:enter', 'marks:update',
       'academics:view',
+      'academic_sessions:view',
+      'classes:view', 'sections:view', 'subjects:view', 'class_subjects:view',
     ],
     CLASS_TEACHER: [
       'students:view',
       'attendance:view', 'attendance:mark', 'attendance:update',
       'exams:view', 'marks:enter', 'marks:update',
       'academics:view',
+      'academic_sessions:view',
+      'classes:view', 'sections:view', 'subjects:view', 'class_subjects:view',
       'reports:view',
     ],
   };
@@ -281,16 +324,254 @@ async function main() {
     }
   }
 
-  // 8. Record Seeding Audit Event
+  // 8. Seed Master Academic Classes & Sections
+  const classDefs = [
+    { name: 'Nursery', code: 'NUR', displayOrder: 1, sections: ['A'] },
+    { name: 'LKG', code: 'LKG', displayOrder: 2, sections: ['A'] },
+    { name: 'UKG', code: 'UKG', displayOrder: 3, sections: ['A'] },
+    { name: 'Class 1', code: 'CLS-01', displayOrder: 4, sections: ['A', 'B'] },
+    { name: 'Class 2', code: 'CLS-02', displayOrder: 5, sections: ['A', 'B'] },
+    { name: 'Class 3', code: 'CLS-03', displayOrder: 6, sections: ['A', 'B'] },
+    { name: 'Class 4', code: 'CLS-04', displayOrder: 7, sections: ['A', 'B'] },
+    { name: 'Class 5', code: 'CLS-05', displayOrder: 8, sections: ['A', 'B'] },
+    { name: 'Class 6', code: 'CLS-06', displayOrder: 9, sections: ['A', 'B'] },
+    { name: 'Class 7', code: 'CLS-07', displayOrder: 10, sections: ['A', 'B'] },
+    { name: 'Class 8', code: 'CLS-08', displayOrder: 11, sections: ['A', 'B'] },
+    { name: 'Class 9', code: 'CLS-09', displayOrder: 12, sections: ['A', 'B'] },
+    { name: 'Class 10', code: 'CLS-10', displayOrder: 13, sections: ['A', 'B'] },
+    { name: 'Class 11', code: 'CLS-11', displayOrder: 14, sections: ['A', 'B'] },
+    { name: 'Class 12', code: 'CLS-12', displayOrder: 15, sections: ['A', 'B'] },
+  ];
+
+  const classMap = new Map<string, string>();
+  for (const cDef of classDefs) {
+    const classRecord = await prisma.class.upsert({
+      where: {
+        schoolId_code: {
+          schoolId: school.id,
+          code: cDef.code,
+        },
+      },
+      update: { name: cDef.name, displayOrder: cDef.displayOrder, isActive: true },
+      create: {
+        schoolId: school.id,
+        name: cDef.name,
+        code: cDef.code,
+        displayOrder: cDef.displayOrder,
+        isActive: true,
+      },
+    });
+    classMap.set(cDef.code, classRecord.id);
+
+    // Create sections under this class
+    for (let i = 0; i < cDef.sections.length; i++) {
+      const secName = cDef.sections[i];
+      const sectionRecord = await prisma.section.upsert({
+        where: {
+          classId_code: {
+            classId: classRecord.id,
+            code: secName,
+          },
+        },
+        update: { name: secName, displayOrder: i + 1, isActive: true },
+        create: {
+          classId: classRecord.id,
+          name: secName,
+          code: secName,
+          displayOrder: i + 1,
+          capacity: 40,
+          isActive: true,
+        },
+      });
+
+      // Map into current academic session (SessionClassSection)
+      await prisma.sessionClassSection.upsert({
+        where: {
+          academicSessionId_classId_sectionId: {
+            academicSessionId: academicSession.id,
+            classId: classRecord.id,
+            sectionId: sectionRecord.id,
+          },
+        },
+        update: { isActive: true },
+        create: {
+          academicSessionId: academicSession.id,
+          classId: classRecord.id,
+          sectionId: sectionRecord.id,
+          capacity: 40,
+          isActive: true,
+        },
+      });
+    }
+  }
+  console.log(`✅ Seeded ${classDefs.length} classes and sections mapped to ${academicSession.name}.`);
+
+  // 9. Seed Subject Master
+  const subjectDefs = [
+    { name: 'English', code: 'ENG', type: 'THEORY', displayOrder: 1 },
+    { name: 'Hindi', code: 'HIN', type: 'THEORY', displayOrder: 2 },
+    { name: 'Mathematics', code: 'MATH', type: 'THEORY', displayOrder: 3 },
+    { name: 'Environmental Studies', code: 'EVS', type: 'THEORY', displayOrder: 4 },
+    { name: 'Science', code: 'SCI', type: 'BOTH', displayOrder: 5 },
+    { name: 'Social Science', code: 'SST', type: 'THEORY', displayOrder: 6 },
+    { name: 'Computer Science', code: 'COMP', type: 'BOTH', displayOrder: 7 },
+    { name: 'Sanskrit', code: 'SKT', type: 'THEORY', displayOrder: 8 },
+    { name: 'Physics', code: 'PHY', type: 'BOTH', displayOrder: 9 },
+    { name: 'Chemistry', code: 'CHEM', type: 'BOTH', displayOrder: 10 },
+    { name: 'Biology', code: 'BIO', type: 'BOTH', displayOrder: 11 },
+    { name: 'Physical Education', code: 'PE', type: 'PRACTICAL', displayOrder: 12 },
+  ];
+
+  const subjectMap = new Map<string, string>();
+  for (const sDef of subjectDefs) {
+    const subRecord = await prisma.subject.upsert({
+      where: {
+        schoolId_code: {
+          schoolId: school.id,
+          code: sDef.code,
+        },
+      },
+      update: { name: sDef.name, type: sDef.type, displayOrder: sDef.displayOrder, isActive: true },
+      create: {
+        schoolId: school.id,
+        name: sDef.name,
+        code: sDef.code,
+        type: sDef.type,
+        displayOrder: sDef.displayOrder,
+        isActive: true,
+      },
+    });
+    subjectMap.set(sDef.code, subRecord.id);
+  }
+  console.log(`✅ Seeded ${subjectDefs.length} foundational subjects.`);
+
+  // 10. Seed Class-Subject Mappings (Class 1 & Class 10)
+  const class1Id = classMap.get('CLS-01');
+  if (class1Id) {
+    const class1Subjects = ['ENG', 'HIN', 'MATH', 'EVS'];
+    for (const code of class1Subjects) {
+      const subId = subjectMap.get(code);
+      if (subId) {
+        await prisma.classSubject.upsert({
+          where: {
+            academicSessionId_classId_subjectId: {
+              academicSessionId: academicSession.id,
+              classId: class1Id,
+              subjectId: subId,
+            },
+          },
+          update: { isCompulsory: true, isActive: true },
+          create: {
+            schoolId: school.id,
+            academicSessionId: academicSession.id,
+            classId: class1Id,
+            subjectId: subId,
+            isCompulsory: true,
+            totalMarks: 100,
+            passingMarks: 33,
+            weeklyPeriods: 6,
+            isActive: true,
+          },
+        });
+      }
+    }
+  }
+
+  const class10Id = classMap.get('CLS-10');
+  if (class10Id) {
+    const class10Subjects = [
+      { code: 'ENG', compulsory: true },
+      { code: 'HIN', compulsory: true },
+      { code: 'MATH', compulsory: true },
+      { code: 'SCI', compulsory: true },
+      { code: 'SST', compulsory: true },
+      { code: 'SKT', compulsory: false }, // Elective/Optional
+    ];
+    for (const item of class10Subjects) {
+      const subId = subjectMap.get(item.code);
+      if (subId) {
+        await prisma.classSubject.upsert({
+          where: {
+            academicSessionId_classId_subjectId: {
+              academicSessionId: academicSession.id,
+              classId: class10Id,
+              subjectId: subId,
+            },
+          },
+          update: { isCompulsory: item.compulsory, isActive: true },
+          create: {
+            schoolId: school.id,
+            academicSessionId: academicSession.id,
+            classId: class10Id,
+            subjectId: subId,
+            isCompulsory: item.compulsory,
+            totalMarks: 100,
+            passingMarks: 33,
+            weeklyPeriods: 5,
+            isActive: true,
+          },
+        });
+      }
+    }
+  }
+  console.log(`✅ Seeded Class-Subject mappings with core and elective flags.`);
+
+  // 11. Seed Centralized System Configuration
+  const defaultConfigs = [
+    { category: 'general', key: 'school_name', value: 'Kids World School', dataType: 'string', isPublic: true, description: 'Official institution display name' },
+    { category: 'general', key: 'school_affiliation', value: 'MP-SCH-2026-001', dataType: 'string', isPublic: true, description: 'Affiliation or recognition board code' },
+    { category: 'general', key: 'school_board', value: 'Madhya Pradesh State Board', dataType: 'string', isPublic: true, description: 'Education board curriculum' },
+    { category: 'general', key: 'contact_phone', value: '+91 761 2450000', dataType: 'string', isPublic: true, description: 'Primary contact helpline' },
+    { category: 'general', key: 'contact_email', value: 'info@kidsworldschool.com', dataType: 'string', isPublic: true, description: 'Official communication inbox' },
+    { category: 'general', key: 'address', value: 'Station Road, Civil Lines, Madhya Pradesh - 482001', dataType: 'string', isPublic: true, description: 'Postal address' },
+    { category: 'academic', key: 'current_session_code', value: 'AY-2026-27', dataType: 'string', isPublic: true, description: 'Active academic session code' },
+    { category: 'academic', key: 'passing_percentage', value: '33', dataType: 'number', isPublic: false, description: 'Minimum passing percentage threshold' },
+    { category: 'academic', key: 'attendance_threshold', value: '75', dataType: 'number', isPublic: false, description: 'Minimum attendance percentage required for exams' },
+    { category: 'academic', key: 'term_count', value: '2', dataType: 'number', isPublic: false, description: 'Number of terms per academic year' },
+    { category: 'fees', key: 'receipt_prefix', value: 'KWS/REC/2026-27/', dataType: 'string', isPublic: false, description: 'Receipt numbering sequence prefix' },
+    { category: 'fees', key: 'currency_code', value: 'INR', dataType: 'string', isPublic: true, description: 'Currency standard code' },
+    { category: 'fees', key: 'currency_symbol', value: '₹', dataType: 'string', isPublic: true, description: 'Currency display symbol' },
+    { category: 'grading', key: 'system_type', value: 'GRADE_POINTS_AND_PERCENTAGE', dataType: 'string', isPublic: false, description: 'Grading scale evaluation structure' },
+  ];
+
+  for (const cfg of defaultConfigs) {
+    await prisma.systemConfig.upsert({
+      where: {
+        schoolId_category_key: {
+          schoolId: school.id,
+          category: cfg.category,
+          key: cfg.key,
+        },
+      },
+      update: {
+        value: cfg.value,
+        dataType: cfg.dataType,
+        isPublic: cfg.isPublic,
+        description: cfg.description,
+      },
+      create: {
+        schoolId: school.id,
+        category: cfg.category,
+        key: cfg.key,
+        value: cfg.value,
+        dataType: cfg.dataType,
+        isPublic: cfg.isPublic,
+        description: cfg.description,
+      },
+    });
+  }
+  console.log(`✅ Seeded ${defaultConfigs.length} master system configurations.`);
+
+  // 12. Record Seeding Audit Event
   await prisma.auditLog.create({
     data: {
       schoolId: school.id,
       userId: superAdminId,
       action: 'SYSTEM_INITIALIZATION_SEEDED',
-      module: 'AUTH',
+      module: 'SYSTEM',
       entityType: 'User',
       entityId: superAdminId,
-      details: 'Initial system permissions, roles, and administrative accounts seeded successfully.',
+      details: 'Initial system permissions, roles, academic structures (classes, sections, subjects, session mappings), and configuration seeded successfully.',
       status: 'SUCCESS',
     },
   });

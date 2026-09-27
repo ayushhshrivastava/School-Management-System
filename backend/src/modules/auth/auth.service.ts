@@ -132,15 +132,18 @@ export class AuthService {
 
     // If user does not exist: generic invalid credentials response
     if (!user) {
-      await logAuditEvent({
-        schoolId: 'UNKNOWN',
-        action: 'LOGIN_FAILED',
-        module: 'AUTH',
-        ipAddress,
-        userAgent,
-        status: 'FAILED',
-        details: `Login attempt failed for non-existent identifier: ${identifier}`,
-      });
+      const defaultSchool = await prisma.school.findFirst({ select: { id: true } });
+      if (defaultSchool) {
+        await logAuditEvent({
+          schoolId: defaultSchool.id,
+          action: 'LOGIN_FAILED',
+          module: 'AUTH',
+          ipAddress,
+          userAgent,
+          status: 'FAILED',
+          details: `Login attempt failed for non-existent identifier: ${identifier}`,
+        });
+      }
       throw new UnauthorizedError('Invalid username/email or password');
     }
 

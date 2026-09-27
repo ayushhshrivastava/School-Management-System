@@ -118,6 +118,36 @@ export function requirePermission(...requiredPermissions: string[]) {
 }
 
 /**
+ * Authorization Guard: Requires that the user possesses AT LEAST ONE of the specified permissions.
+ * Super Admins automatically bypass permission checks.
+ */
+export function requireAnyPermission(...permissions: string[]) {
+  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return next(new UnauthorizedError('Authentication required'));
+    }
+
+    // Super Admin bypass
+    if (req.user.isSuperAdmin) {
+      return next();
+    }
+
+    const userPerms = new Set(req.user.permissions);
+    const hasAny = permissions.some((p) => userPerms.has(p));
+
+    if (!hasAny) {
+      return next(
+        new ForbiddenError(
+          `Action requires one of the following permissions: ${permissions.join(', ')}`
+        )
+      );
+    }
+
+    next();
+  };
+}
+
+/**
  * Authorization Guard: Requires that the user possesses at least one of the specified roles.
  * Super Admins automatically bypass role checks.
  */

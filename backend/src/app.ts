@@ -10,6 +10,13 @@ import { sessionContextMiddleware } from './core/middleware/sessionContext';
 import { NotFoundError } from './core/errors/AppError';
 import systemRoutes from './modules/system/system.routes';
 import authRoutes from './modules/auth/auth.routes';
+import academicsRoutes from './modules/academics/academics.routes';
+import sessionRoutes from './modules/academics/sessions/session.routes';
+import classRoutes from './modules/academics/classes/class.routes';
+import sectionRoutes from './modules/academics/sections/section.routes';
+import subjectRoutes from './modules/academics/subjects/subject.routes';
+import classSubjectRoutes from './modules/academics/class-subjects/classSubject.routes';
+import configRoutes from './modules/config/config.routes';
 
 export function createApp(): Application {
   const app: Application = express();
@@ -59,11 +66,14 @@ export function createApp(): Application {
   // 8. API Routes
   app.use(config.API_PREFIX, systemRoutes);
   app.use(`${config.API_PREFIX}/auth`, authRoutes);
-  // app.use(`${config.API_PREFIX}/students`, studentRoutes);
-  // app.use(`${config.API_PREFIX}/classes`, classRoutes);
-  // app.use(`${config.API_PREFIX}/attendance`, attendanceRoutes);
-  // app.use(`${config.API_PREFIX}/fees`, feeRoutes);
-  // app.use(`${config.API_PREFIX}/exams`, examRoutes);
+  app.use(`${config.API_PREFIX}/academic-sessions`, sessionRoutes);
+  app.use(`${config.API_PREFIX}/classes`, classRoutes);
+  app.use(`${config.API_PREFIX}/sections`, sectionRoutes);
+  app.use(`${config.API_PREFIX}/subjects`, subjectRoutes);
+  app.use(`${config.API_PREFIX}/class-subjects`, classSubjectRoutes);
+  app.use(`${config.API_PREFIX}/academics`, academicsRoutes);
+  app.use(`${config.API_PREFIX}/configs`, configRoutes);
+  app.use(`${config.API_PREFIX}/system/configs`, configRoutes);
 
   // 9. Root Welcome Route
   app.get('/', (req: Request, res: Response) => {

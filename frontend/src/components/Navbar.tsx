@@ -78,9 +78,9 @@ export const Navbar: React.FC = () => {
             <span style={{ fontWeight: 600, color: 'var(--status-success)' }}>PostgreSQL</span>
           </div>
 
-          <div className="badge badge-success">
-            <ShieldCheck size={13} />
-            <span>Step 2 Auth Active</span>
+          <div className="badge badge-success" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'rgba(99, 102, 241, 0.15)', color: '#818cf8', border: '1px solid rgba(99, 102, 241, 0.3)', padding: '0.35rem 0.75rem', borderRadius: '0.5rem', fontSize: '0.75rem', fontWeight: 600 }}>
+            <ShieldCheck size={14} />
+            <span>Step 3 Master Active</span>
           </div>
 
           <UserBadge />

@@ -38,6 +38,9 @@ model School {
   users             User[]
   systemConfigs     SystemConfig[]
   auditLogs         AuditLog[]
+  classes           Class[]
+  subjects          Subject[]
+  classSubjects     ClassSubject[]
 
   @@map("schools")
 }
@@ -58,9 +61,11 @@ model AcademicSession {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  school      School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  school               School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  sessionClassSections SessionClassSection[]
+  classSubjects        ClassSubject[]
 
-  // Future entity relations (Step 3+):
+  // Future entity relations (Step 4+):
   // enrollments      StudentEnrollment[]
   // attendance       AttendanceRecord[]
   // feeInvoices      FeeInvoice[]
@@ -199,6 +204,7 @@ model SystemConfig {
   dataType    String   @default("string") // "string", "number", "boolean", "json"
   isPublic    Boolean  @default(false)    // If safe to expose to client apps
   description String?
+  createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   school      School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
@@ -216,8 +222,8 @@ model AuditLog {
   schoolId   String
   userId     String?
   action     String   // e.g., "LOGIN_SUCCESS", "STUDENT_ENROLLED", "FEE_COLLECTED"
-  module     String   // e.g., "AUTH", "ADMISSION", "FEES", "SYSTEM"
-  entityType String?  // e.g., "Student", "FeeInvoice", "Role"
+  module     String   // e.g., "AUTH", "ADMISSION", "FEES", "SYSTEM", "ACADEMICS"
+  entityType String?  // e.g., "Student", "FeeInvoice", "Role", "Class", "Section", "Subject"
   entityId   String?
   oldValues  String?  // JSON string before change
   newValues  String?  // JSON string after change
@@ -235,3 +241,127 @@ model AuditLog {
   @@index([createdAt])
   @@map("audit_logs")
 }
+
+// --------------------------------------------------------------------
+// 7. Academic Structure Masters (Step 3)
+// --------------------------------------------------------------------
+
+model Class {
+  id           String   @id @default(uuid())
+  schoolId     String
+  name         String   // e.g. "Class 1", "Nursery", "Class 10"
+  code         String   // e.g. "CLS-01", "NUR"
+  displayOrder Int      @default(0)
+  isActive     Boolean  @default(true)
+  description  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  school               School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  sections             Section[]
+  classSubjects        ClassSubject[]
+  sessionClassSections SessionClassSection[]
+
+  @@unique([schoolId, name])
+  @@unique([schoolId, code])
+  @@index([schoolId, isActive])
+  @@index([schoolId, displayOrder])
+  @@map("classes")
+}
+
+model Section {
+  id           String   @id @default(uuid())
+  classId      String
+  name         String   // e.g. "A", "B", "Rose"
+  code         String   // e.g. "A", "B"
+  capacity     Int?     @default(40)
+  displayOrder Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  class                Class                 @relation(fields: [classId], references: [id], onDelete: Cascade)
+  sessionClassSections SessionClassSection[]
+
+  @@unique([classId, name])
+  @@unique([classId, code])
+  @@index([classId, isActive])
+  @@map("sections")
+}
+
+// Session-Class-Section enables academic structure variation across academic sessions
+model SessionClassSection {
+  id                String   @id @default(uuid())
+  academicSessionId String
+  classId           String
+  sectionId         String
+  capacity          Int?
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  academicSession AcademicSession @relation(fields: [academicSessionId], references: [id], onDelete: Cascade)
+  class           Class           @relation(fields: [classId], references: [id], onDelete: Cascade)
+  section         Section         @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  // Future entity relations (Step 4+):
+  // studentEnrollments StudentEnrollment[]
+  // attendanceRecords AttendanceRecord[]
+
+  @@unique([academicSessionId, classId, sectionId])
+  @@index([academicSessionId, classId])
+  @@index([academicSessionId, isActive])
+  @@map("session_class_sections")
+}
+
+model Subject {
+  id           String   @id @default(uuid())
+  schoolId     String
+  name         String   // e.g. "Mathematics", "English"
+  code         String   // e.g. "MATH", "ENG"
+  type         String   @default("THEORY") // "THEORY", "PRACTICAL", "BOTH", "CO_CURRICULAR"
+  displayOrder Int      @default(0)
+  isActive     Boolean  @default(true)
+  description  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  school        School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  classSubjects ClassSubject[]
+
+  @@unique([schoolId, name])
+  @@unique([schoolId, code])
+  @@index([schoolId, isActive])
+  @@index([schoolId, displayOrder])
+  @@map("subjects")
+}
+
+model ClassSubject {
+  id                String   @id @default(uuid())
+  schoolId          String
+  academicSessionId String
+  classId           String
+  subjectId         String
+  isCompulsory      Boolean  @default(true) // true = Core/Compulsory, false = Optional/Elective
+  weeklyPeriods     Int?     @default(5)
+  totalMarks        Float?   @default(100)
+  passingMarks      Float?   @default(33)
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  school          School          @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  academicSession AcademicSession @relation(fields: [academicSessionId], references: [id], onDelete: Cascade)
+  class           Class           @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subject         Subject         @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  // Future entity relations (Step 8+):
+  // examSchedules ExamSchedule[]
+  // marksEntries MarksEntry[]
+
+  @@unique([academicSessionId, classId, subjectId])
+  @@index([schoolId, academicSessionId, classId])
+  @@index([academicSessionId, isActive])
+  @@map("class_subjects")
+}
+
