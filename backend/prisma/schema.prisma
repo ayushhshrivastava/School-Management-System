@@ -92,14 +92,36 @@ model User {
   createdAt           DateTime   @default(now())
   updatedAt           DateTime   @updatedAt
 
-  school              School     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  school              School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   userRoles           UserRole[]
   auditLogs           AuditLog[]
+  refreshTokens       RefreshToken[]
 
   @@index([schoolId, isActive])
   @@index([email])
   @@index([username])
   @@map("users")
+}
+
+// --------------------------------------------------------------------
+// 3.1 Refresh Token Entity (Rotation & Revocation)
+// --------------------------------------------------------------------
+model RefreshToken {
+  id         String    @id @default(uuid())
+  tokenHash  String    @unique // Hashed refresh token for security
+  userId     String
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  replacedBy String?   // Pointer to new token hash upon rotation
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime  @default(now())
+
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@map("refresh_tokens")
 }
 
 // --------------------------------------------------------------------

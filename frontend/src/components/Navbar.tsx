@@ -1,5 +1,6 @@
 import React from 'react';
 import { School, ShieldCheck, Database, Calendar } from 'lucide-react';
+import { UserBadge } from './UserBadge';
 
 export const Navbar: React.FC = () => {
   return (
@@ -17,7 +18,9 @@ export const Navbar: React.FC = () => {
         margin: '0 auto',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'space-between'
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '1rem'
       }}>
         {/* Logo & School Identity */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
@@ -43,8 +46,8 @@ export const Navbar: React.FC = () => {
           </div>
         </div>
 
-        {/* System Status Indicators */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        {/* System Status Indicators & User Profile */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -77,8 +80,10 @@ export const Navbar: React.FC = () => {
 
           <div className="badge badge-success">
             <ShieldCheck size={13} />
-            <span>Step 1 Initialized</span>
+            <span>Step 2 Auth Active</span>
           </div>
+
+          <UserBadge />
         </div>
       </div>
     </header>

@@ -1,6 +1,7 @@
 import express, { Application, Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import { config } from './config';
 import { requestLogger } from './core/middleware/requestLogger';
 import { apiRateLimiter } from './core/middleware/rateLimiter';
@@ -8,6 +9,7 @@ import { errorHandler } from './core/middleware/errorHandler';
 import { sessionContextMiddleware } from './core/middleware/sessionContext';
 import { NotFoundError } from './core/errors/AppError';
 import systemRoutes from './modules/system/system.routes';
+import authRoutes from './modules/auth/auth.routes';
 
 export function createApp(): Application {
   const app: Application = express();
@@ -46,6 +48,7 @@ export function createApp(): Application {
   // 5. Body Parsing with payload limits
   app.use(express.json({ limit: '2mb' }));
   app.use(express.urlencoded({ extended: true, limit: '2mb' }));
+  app.use(cookieParser(config.COOKIE_SECRET));
 
   // 6. Request Logging & Correlation ID
   app.use(requestLogger);
@@ -55,9 +58,7 @@ export function createApp(): Application {
 
   // 8. API Routes
   app.use(config.API_PREFIX, systemRoutes);
-
-  // Future modules will mount here cleanly:
-  // app.use(`${config.API_PREFIX}/auth`, authRoutes);
+  app.use(`${config.API_PREFIX}/auth`, authRoutes);
   // app.use(`${config.API_PREFIX}/students`, studentRoutes);
   // app.use(`${config.API_PREFIX}/classes`, classRoutes);
   // app.use(`${config.API_PREFIX}/attendance`, attendanceRoutes);
