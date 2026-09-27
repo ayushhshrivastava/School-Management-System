@@ -1,0 +1,215 @@
+// ====================================================================
+// Prisma Schema - Kids World School ERP (Madhya Pradesh, India)
+// Version 1 - Step 1: Foundation & Core Entity Architecture
+// ====================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --------------------------------------------------------------------
+// 1. Institution Entity
+// --------------------------------------------------------------------
+model School {
+  id                String            @id @default(uuid())
+  code              String            @unique // e.g., "KWS-MP"
+  name              String            @default("Kids World School")
+  affiliationNumber String?
+  board             String?           @default("State Board")
+  address           String
+  city              String            @default("Madhya Pradesh")
+  state             String            @default("Madhya Pradesh")
+  country           String            @default("India")
+  postalCode        String?
+  phone             String
+  email             String
+  website           String?
+  logoUrl           String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  // Relationships
+  academicSessions  AcademicSession[]
+  users             User[]
+  systemConfigs     SystemConfig[]
+  auditLogs         AuditLog[]
+
+  @@map("schools")
+}
+
+// --------------------------------------------------------------------
+// 2. Academic Session Architecture (Session Isolation)
+// --------------------------------------------------------------------
+model AcademicSession {
+  id          String   @id @default(uuid())
+  schoolId    String
+  name        String   // e.g. "2026-2027"
+  code        String   // e.g. "AY-2026-27"
+  startDate   DateTime
+  endDate     DateTime
+  isCurrent   Boolean  @default(false)
+  isLocked    Boolean  @default(false) // Prevents accidental modification of archived data
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  school      School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  // Future entity relations (Step 3+):
+  // enrollments      StudentEnrollment[]
+  // attendance       AttendanceRecord[]
+  // feeInvoices      FeeInvoice[]
+  // examSchedules    ExamSchedule[]
+
+  @@unique([schoolId, code])
+  @@unique([schoolId, name])
+  @@index([schoolId, isCurrent])
+  @@map("academic_sessions")
+}
+
+// --------------------------------------------------------------------
+// 3. User & Authentication Entity
+// --------------------------------------------------------------------
+model User {
+  id                  String     @id @default(uuid())
+  schoolId            String
+  username            String     @unique
+  email               String     @unique
+  passwordHash        String
+  fullName            String
+  phone               String?
+  isActive            Boolean    @default(true)
+  isSuperAdmin        Boolean    @default(false)
+  lastLoginAt         DateTime?
+  passwordChangedAt   DateTime?
+  failedLoginAttempts Int        @default(0)
+  lockedUntil         DateTime?
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  school              School     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  userRoles           UserRole[]
+  auditLogs           AuditLog[]
+
+  @@index([schoolId, isActive])
+  @@index([email])
+  @@index([username])
+  @@map("users")
+}
+
+// --------------------------------------------------------------------
+// 4. Role-Based Access Control (RBAC) Entities
+// --------------------------------------------------------------------
+model Role {
+  id          String           @id @default(uuid())
+  code        String           @unique // e.g. "SUPER_ADMIN", "PRINCIPAL", "ACCOUNTANT", "TEACHER"
+  name        String           // e.g. "Principal", "Accountant"
+  description String?
+  isSystem    Boolean          @default(true) // Built-in system roles cannot be deleted
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  userRoles       UserRole[]
+  rolePermissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String           @id @default(uuid())
+  code        String           @unique // e.g. "students:read", "fees:collect", "marks:edit"
+  module      String           // e.g. "students", "fees", "attendance", "academics", "system"
+  action      String           // e.g. "create", "read", "update", "delete", "export", "approve"
+  description String?
+  createdAt   DateTime         @default(now())
+
+  rolePermissions RolePermission[]
+
+  @@index([module])
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String     @id @default(uuid())
+  roleId       String
+  permissionId String
+  createdAt    DateTime   @default(now())
+
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  id         String   @id @default(uuid())
+  userId     String
+  roleId     String
+  assignedAt DateTime @default(now())
+  assignedBy String?
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@index([userId])
+  @@index([roleId])
+  @@map("user_roles")
+}
+
+// --------------------------------------------------------------------
+// 5. Centralized System Configuration Entity
+// --------------------------------------------------------------------
+model SystemConfig {
+  id          String   @id @default(uuid())
+  schoolId    String
+  category    String   // "general", "academic", "fees", "grading", "security"
+  key         String   // "currency_symbol", "receipt_prefix", "grading_scheme"
+  value       String   // JSON string or scalar string
+  dataType    String   @default("string") // "string", "number", "boolean", "json"
+  isPublic    Boolean  @default(false)    // If safe to expose to client apps
+  description String?
+  updatedAt   DateTime @updatedAt
+
+  school      School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([schoolId, category, key])
+  @@index([schoolId, category])
+  @@map("system_configs")
+}
+
+// --------------------------------------------------------------------
+// 6. Security & Audit Trail Entity
+// --------------------------------------------------------------------
+model AuditLog {
+  id         String   @id @default(uuid())
+  schoolId   String
+  userId     String?
+  action     String   // e.g., "LOGIN_SUCCESS", "STUDENT_ENROLLED", "FEE_COLLECTED"
+  module     String   // e.g., "AUTH", "ADMISSION", "FEES", "SYSTEM"
+  entityType String?  // e.g., "Student", "FeeInvoice", "Role"
+  entityId   String?
+  oldValues  String?  // JSON string before change
+  newValues  String?  // JSON string after change
+  ipAddress  String?
+  userAgent  String?
+  status     String   @default("SUCCESS") // "SUCCESS" | "FAILED" | "WARNING"
+  details    String?
+  createdAt  DateTime @default(now())
+
+  school     School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([schoolId, module, action])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
